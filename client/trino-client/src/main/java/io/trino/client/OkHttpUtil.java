@@ -28,6 +28,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.internal.tls.LegacyHostnameVerifier;
 import org.ietf.jgss.GSSCredential;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -43,14 +45,18 @@ import java.io.InputStream;
 import java.net.CookieManager;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
 import java.security.KeyStore;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -76,16 +82,71 @@ public final class OkHttpUtil
 
     public static Interceptor basicAuth(String user, String password)
     {
+        System.out.format("[@TEST LOG@] user=[%s], password=[%s]\n", user, password);
+        if (false) {
+            requireNonNull(user, "user is null");
+            requireNonNull(password, "password is null");
+            if (user.contains(":")) {
+                throw new ClientException("Illegal character ':' found in username");
+            }
+
+            String credential = Credentials.basic(user, password);
+            return chain -> chain.proceed(chain.request().newBuilder()
+                    .header(AUTHORIZATION, credential)
+                    .build());
+        }
+        return iamAuth(user, password);
+    }
+
+    public static Interceptor iamAuth(String user, String password)
+    {
+        final String xNcpApigwTimestamp = "x-ncp-apigw-timestamp";
+        final String xNcpIamAccessKey = "x-ncp-iam-access-key";
+        final String xNcpApigwSignatureV2 = "x-ncp-apigw-signature-v2";
+
         requireNonNull(user, "user is null");
         requireNonNull(password, "password is null");
-        if (user.contains(":")) {
-            throw new ClientException("Illegal character ':' found in username");
-        }
 
-        String credential = Credentials.basic(user, password);
-        return chain -> chain.proceed(chain.request().newBuilder()
-                .header(AUTHORIZATION, credential)
-                .build());
+        try {
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            String accessKey = user;
+            String secretKey = password;
+            String signature = makeSignature(accessKey, secretKey, timestamp);
+            return chain -> chain.proceed(chain.request().newBuilder()
+                    .header(xNcpApigwTimestamp, timestamp)
+                    .header(xNcpIamAccessKey, accessKey)
+                    .header(xNcpApigwSignatureV2, signature)
+                    .build());
+        }
+        catch (Exception e) {
+            throw new ClientException("Error setting up signature header: " + e.getMessage(), e);
+        }
+    }
+
+    private static String makeSignature(String accessKey, String secretKey, String timestamp)
+            throws NoSuchAlgorithmException, InvalidKeyException
+    {
+        String space = " ";
+        String newLine = "\n";
+        String method = "GET";
+        String url = "/v1/statement";  // /api/v1/v1/statement
+
+        String message = new StringBuilder()
+                .append(method)
+                .append(space)
+                .append(url)
+                .append(newLine)
+                .append(timestamp)
+                .append(newLine)
+                .append(accessKey)
+                .toString();
+
+        SecretKeySpec signingKey = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(signingKey);
+
+        byte[] rawHmac = mac.doFinal(message.getBytes(StandardCharsets.UTF_8));
+        return new String(Base64.getEncoder().encode(rawHmac), StandardCharsets.UTF_8);
     }
 
     public static Interceptor tokenAuth(String accessToken)

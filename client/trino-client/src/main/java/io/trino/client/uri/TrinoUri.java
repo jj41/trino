@@ -273,9 +273,9 @@ public class TrinoUri
         // enable SSL by default for the trino schema and the standard port
         useSecureConnection = SSL.getValue(properties).orElse(uri.getScheme().equals("https") || (uri.getScheme().equals("trino") && uri.getPort() == 443));
         if (!password.orElse("").isEmpty()) {
-            if (!useSecureConnection) {
-                throw new SQLException("TLS/SSL required for authentication with username and password");
-            }
+//            if (!useSecureConnection) {
+//                throw new SQLException("TLS/SSL required for authentication with username and password");
+//            }
         }
         validateConnectionProperties(properties);
 
@@ -586,9 +586,9 @@ public class TrinoUri
 
             String password = this.password.orElse("");
             if (!password.isEmpty()) {
-                if (!useSecureConnection) {
-                    throw new SQLException("TLS/SSL is required for authentication with username and password");
-                }
+//                if (!useSecureConnection) {
+//                    throw new SQLException("TLS/SSL is required for authentication with username and password");
+//                }
                 builder.addInterceptor(basicAuth(getRequiredUser(), password));
             }
 

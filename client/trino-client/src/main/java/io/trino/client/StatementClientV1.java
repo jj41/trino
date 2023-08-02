@@ -114,6 +114,7 @@ class StatementClientV1
         this.compressionDisabled = session.isCompressionDisabled();
 
         Request request = buildQueryRequest(session, query);
+        System.out.format("[@TEST LOG@] request=[%s]\n", request);
 
         // Always materialize the first response to avoid losing the response body if the initial response parsing fails
         JsonResponse<QueryResults> response = JsonResponse.execute(QUERY_RESULTS_CODEC, httpCallFactory, request, OptionalLong.empty());
