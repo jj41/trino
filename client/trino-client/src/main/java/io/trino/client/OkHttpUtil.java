@@ -128,8 +128,8 @@ public final class OkHttpUtil
     {
         String space = " ";
         String newLine = "\n";
-        String method = "GET";
-        String url = "/v1/statement";  // /api/v1/v1/statement
+        String method = "POST";  // GET | POST | ...
+        String url = "/query/kr/v1/statement";  // /query/kr/v1/statement
 
         String message = new StringBuilder()
                 .append(method)
