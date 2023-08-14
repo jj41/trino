@@ -51,7 +51,6 @@ import static com.google.common.base.MoreObjects.firstNonNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.ImmutableMap.toImmutableMap;
 import static io.trino.client.KerberosUtil.defaultCredentialCachePath;
-import static io.trino.client.OkHttpUtil.basicAuth;
 import static io.trino.client.OkHttpUtil.setupAlternateHostnameVerification;
 import static io.trino.client.OkHttpUtil.setupCookieJar;
 import static io.trino.client.OkHttpUtil.setupHttpProxy;
@@ -60,6 +59,7 @@ import static io.trino.client.OkHttpUtil.setupKerberos;
 import static io.trino.client.OkHttpUtil.setupSocksProxy;
 import static io.trino.client.OkHttpUtil.setupSsl;
 import static io.trino.client.OkHttpUtil.tokenAuth;
+import static io.trino.client.OkHttpUtilForNcp.iamAuth;
 import static io.trino.client.uri.ConnectionProperties.ACCESS_TOKEN;
 import static io.trino.client.uri.ConnectionProperties.APPLICATION_NAME_PREFIX;
 import static io.trino.client.uri.ConnectionProperties.ASSUME_LITERAL_NAMES_IN_METADATA_CALLS_FOR_NON_CONFORMING_CLIENTS;
@@ -589,7 +589,9 @@ public class TrinoUri
 //                if (!useSecureConnection) {
 //                    throw new SQLException("TLS/SSL is required for authentication with username and password");
 //                }
-                builder.addInterceptor(basicAuth(getRequiredUser(), password));
+
+//                builder.addInterceptor(basicAuth(getRequiredUser(), password));
+                builder.addInterceptor(iamAuth(getRequiredUser(), password));
             }
 
             if (useSecureConnection) {
